@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Net.Sockets;
@@ -9,18 +10,14 @@ using u8 = System.Text.Encoding;
 const string _okStatusLine = "HTTP/1.1 200 OK\r\n";
 const string _notFound = "HTTP/1.1 404 Not Found\r\n\r\n";
 const string _crlf = "\r\n";
+Dictionary<string, string> requestHeaders = new();
 
-// You can use print statements as follows for debugging, they'll be visible when running tests.
-Console.WriteLine("Logs from your program will appear here!");
-
-// TODO: Uncomment the code below to pass the first stage
 TcpListener server = new TcpListener(IPAddress.Any, 4221);
 server.Start();
 
 using TcpClient handler = server.AcceptTcpClient();
 using NetworkStream stream = handler.GetStream();
 
-//Create a buffer
 byte[] buffer = new byte[1024];
 
 StringBuilder builder = new();
@@ -29,47 +26,65 @@ int data = stream.Read(buffer, 0, buffer.Length);
 
 string request = u8.UTF8.GetString(buffer,0,data);
 
-var reqArr = request.Split("\r\n");
+string[] reqArr = request.Split("\r\n\r\n");
+string reqLine = reqArr[0];
+string reqBody = reqArr[1];
 
-var requestLine = reqArr[0]?.Split(" ");
+var reqLineWithHeaderArr = reqLine.Split("\r\n");
 
-if (!(requestLine?.Length == 3))
+for(int i = 1; i < reqLineWithHeaderArr.Length; i++)
+{
+    string[] headerArr = reqLineWithHeaderArr[i].Split(" ");
+    string key = headerArr[0];
+    string val = headerArr[1];
+
+    requestHeaders.TryAdd(key, val);    
+}
+
+string[] reqLineArr = reqLineWithHeaderArr[0].Split(" ");
+
+if (!(reqLineArr?.Length == 3))
 {
     stream.Socket.Send(u8.UTF8.GetBytes(_notFound));
     return;
 
 }
 
-string method = requestLine[0];
-string target = requestLine[1];
-string httpVersion = requestLine[2];
+string method = reqLineArr[0];
+string target = reqLineArr[1];
+string httpVersion = reqLineArr[2];
 
 var targetArr = target.Split("/");
 
-if(targetArr.Length == 3)
-{
-    string endpoint = targetArr[1];
-    string responseBody = targetArr[2];
-    builder.Append(_okStatusLine);
-    //Headers
-    builder.Append($"Content-Type: text/plain{_crlf}");
-    builder.Append($"Content-Length: {responseBody.Length.ToString()}{_crlf}");
-    builder.Append(_crlf);
+string endpoint = target == "/" ? "/" : targetArr[1];
 
-    //Body
-    builder.Append(responseBody);
-
-    Console.WriteLine(builder.ToString());
-    stream.Socket.Send(u8.UTF8.GetBytes(builder.ToString()));
-    return;
-}
-
-//If we got here it's something else
-
-switch (target)
+switch (endpoint)
 {
     case "/":
         builder.Append($"{_okStatusLine}{_crlf}");
+        break;
+    case "echo":        
+        builder.Append(_okStatusLine);
+
+        //Headers
+        builder.Append($"Content-Type: text/plain{_crlf}");
+        builder.Append($"Content-Length: {targetArr[2].Length.ToString()}{_crlf}");
+        builder.Append(_crlf);
+
+        builder.Append(targetArr[2]);
+        break;
+    case "user-agent":
+        if(requestHeaders.TryGetValue("User-Agent:", out string responseBody))
+        {
+            builder.Append(_okStatusLine);
+
+            //Headers
+            builder.Append($"Content-Type: text/plain{_crlf}");
+            builder.Append($"Content-Length: {responseBody.Length.ToString()}{_crlf}");
+            builder.Append(_crlf);
+
+            builder.Append(responseBody);
+        }
         break;
     default:
         builder.Append(_notFound);
@@ -79,5 +94,4 @@ switch (target)
 Console.WriteLine(builder.ToString());
 
 stream.Socket.Send(u8.UTF8.GetBytes(builder.ToString()));
-
 
