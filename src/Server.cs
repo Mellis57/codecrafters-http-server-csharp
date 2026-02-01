@@ -15,83 +15,87 @@ Dictionary<string, string> requestHeaders = new();
 TcpListener server = new TcpListener(IPAddress.Any, 4221);
 server.Start();
 
-using TcpClient handler = server.AcceptTcpClient();
-using NetworkStream stream = handler.GetStream();
-
-byte[] buffer = new byte[1024];
-
-StringBuilder builder = new();
-
-int data = stream.Read(buffer, 0, buffer.Length);
-
-string request = u8.UTF8.GetString(buffer,0,data);
-
-string[] reqArr = request.Split("\r\n\r\n");
-string reqLine = reqArr[0];
-string reqBody = reqArr[1];
-
-var reqLineWithHeaderArr = reqLine.Split("\r\n");
-
-for(int i = 1; i < reqLineWithHeaderArr.Length; i++)
+while (true)
 {
-    string[] headerArr = reqLineWithHeaderArr[i].Split(" ");
-    string key = headerArr[0];
-    string val = headerArr[1];
+    using TcpClient handler = await server.AcceptTcpClientAsync();
+    await using NetworkStream stream = handler.GetStream();
 
-    requestHeaders.TryAdd(key, val);    
-}
+    byte[] buffer = new byte[1024];
 
-string[] reqLineArr = reqLineWithHeaderArr[0].Split(" ");
+    StringBuilder builder = new();
 
-if (!(reqLineArr?.Length == 3))
-{
-    stream.Socket.Send(u8.UTF8.GetBytes(_notFound));
-    return;
+    int data = await stream.ReadAsync(buffer, 0, buffer.Length);
 
-}
+    string request = u8.UTF8.GetString(buffer, 0, data);
 
-string method = reqLineArr[0];
-string target = reqLineArr[1];
-string httpVersion = reqLineArr[2];
+    string[] reqArr = request.Split("\r\n\r\n");
+    string reqLine = reqArr[0];
+    string reqBody = reqArr[1];
 
-var targetArr = target.Split("/");
+    var reqLineWithHeaderArr = reqLine.Split("\r\n");
 
-string endpoint = target == "/" ? "/" : targetArr[1];
+    for (int i = 1; i < reqLineWithHeaderArr.Length; i++)
+    {
+        string[] headerArr = reqLineWithHeaderArr[i].Split(" ");
+        string key = headerArr[0];
+        string val = headerArr[1];
 
-switch (endpoint)
-{
-    case "/":
-        builder.Append($"{_okStatusLine}{_crlf}");
-        break;
-    case "echo":        
-        builder.Append(_okStatusLine);
+        requestHeaders.TryAdd(key, val);
+    }
 
-        //Headers
-        builder.Append($"Content-Type: text/plain{_crlf}");
-        builder.Append($"Content-Length: {targetArr[2].Length.ToString()}{_crlf}");
-        builder.Append(_crlf);
+    string[] reqLineArr = reqLineWithHeaderArr[0].Split(" ");
 
-        builder.Append(targetArr[2]);
-        break;
-    case "user-agent":
-        if(requestHeaders.TryGetValue("User-Agent:", out string responseBody))
-        {
+    if (!(reqLineArr?.Length == 3))
+    {
+        await stream.Socket.SendAsync(u8.UTF8.GetBytes(_notFound));
+        return;
+
+    }
+
+    string method = reqLineArr[0];
+    string target = reqLineArr[1];
+    string httpVersion = reqLineArr[2];
+
+    var targetArr = target.Split("/");
+
+    string endpoint = target == "/" ? "/" : targetArr[1];
+
+    switch (endpoint)
+    {
+        case "/":
+            builder.Append($"{_okStatusLine}{_crlf}");
+            break;
+        case "echo":
             builder.Append(_okStatusLine);
 
             //Headers
             builder.Append($"Content-Type: text/plain{_crlf}");
-            builder.Append($"Content-Length: {responseBody.Length.ToString()}{_crlf}");
+            builder.Append($"Content-Length: {targetArr[2].Length.ToString()}{_crlf}");
             builder.Append(_crlf);
 
-            builder.Append(responseBody);
-        }
-        break;
-    default:
-        builder.Append(_notFound);
-        break;
+            builder.Append(targetArr[2]);
+            break;
+        case "user-agent":
+            if (requestHeaders.TryGetValue("User-Agent:", out string responseBody))
+            {
+                builder.Append(_okStatusLine);
+
+                //Headers
+                builder.Append($"Content-Type: text/plain{_crlf}");
+                builder.Append($"Content-Length: {responseBody.Length.ToString()}{_crlf}");
+                builder.Append(_crlf);
+
+                builder.Append(responseBody);
+            }
+            break;
+        default:
+            builder.Append(_notFound);
+            break;
+    }
+
+    Console.WriteLine(builder.ToString());
+
+    await stream.Socket.SendAsync(u8.UTF8.GetBytes(builder.ToString()));
+
 }
-
-Console.WriteLine(builder.ToString());
-
-stream.Socket.Send(u8.UTF8.GetBytes(builder.ToString()));
 
