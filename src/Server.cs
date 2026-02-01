@@ -1,18 +1,17 @@
-using System;
 using System.Collections.Concurrent;
-using System.ComponentModel.DataAnnotations;
 using System.Net;
-using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.Unicode;
 using u8 = System.Text.Encoding;
 
 const string _okStatusLine = "HTTP/1.1 200 OK\r\n";
 const string _notFound = "HTTP/1.1 404 Not Found\r\n\r\n";
 const string _crlf = "\r\n";
 ConcurrentDictionary<string, string> requestHeaders = new();
+ConcurrentDictionary<string, string> argDict = new();
+
+if (args.Length == 2)
+    argDict.TryAdd(args[0], args[1]);
 
 // You can use print statements as follows for debugging, they'll be visible
 // when running tests.
@@ -23,7 +22,6 @@ server.Start();
 
 while (true)
 {
-    Console.WriteLine("Why wont you work");
     TcpClient client = await server.AcceptTcpClientAsync();
     _ = Process(client);
 }
@@ -43,9 +41,6 @@ async Task Process(TcpClient client)
 
         string request = u8.UTF8.GetString(buffer, 0, data);
         
-        //debug
-        //request = @"GET / HTTP/1.1\r\nHost: localhost:4221\r\n\r\n";
-        Console.WriteLine("request");
         string[] reqArr = request.Split("\r\n\r\n");
         string reqLine = reqArr[0];        
         string reqBody = reqArr.Length == 2 ? reqArr[1] : "";
@@ -54,8 +49,6 @@ async Task Process(TcpClient client)
 
         for (int i = 1; i < reqLineWithHeaderArr.Length; i++)
         {
-            Console.WriteLine("Heddys");
-
             string[] headerArr = reqLineWithHeaderArr[i].Split(" ");
             string key = headerArr[0];
             string val = headerArr[1];
@@ -67,8 +60,6 @@ async Task Process(TcpClient client)
 
         if ((reqLineArr?.Length < 3))
         {
-            Console.WriteLine("shit");
-
             await stream.WriteAsync(u8.UTF8.GetBytes(builder.ToString()));
             await stream.FlushAsync();
             return;
@@ -82,8 +73,6 @@ async Task Process(TcpClient client)
         var targetArr = target.Split("/");
 
         string endpoint = target == "/" ? "/" : targetArr[1];
-
-        Console.WriteLine("do the thing");
 
         switch (endpoint)
         {
@@ -111,6 +100,48 @@ async Task Process(TcpClient client)
                     builder.Append(_crlf);
 
                     builder.Append(responseBody);
+                }
+                break;
+            case "files":
+                string fileName = targetArr[2];
+                if (argDict.TryGetValue("--directory", out string dir))
+                {
+                    Console.WriteLine($"Directory: {dir}");
+                    Console.WriteLine($"File: {fileName}");
+
+                    if (!Directory.Exists(dir))
+                    {
+                        Console.WriteLine("Dir not found");
+                        builder.Append(_notFound);
+                        break;
+                    }
+
+                    string filePath = Path.Combine(dir, fileName);
+
+                    if (!File.Exists(filePath))
+                    {
+                        Console.WriteLine("File not found");
+                        builder.Append(_notFound);
+                        break;
+
+                    }
+
+                    var fileData = await File.ReadAllTextAsync(filePath);
+                    // Status Line
+                    builder.Append(_okStatusLine);
+
+                    //Headers
+                    builder.Append($"Content-Type: application/octet-stream{_crlf}");
+                    builder.Append($"Content-Length: {fileData.Length}{_crlf}");
+                    builder.Append(_crlf);
+
+                    // Body
+                    builder.Append(fileData);
+                }
+                else
+                {
+                    Console.WriteLine("--directory key not found in dictionary");
+                    builder.Append(_notFound);
                 }
                 break;
             default:
