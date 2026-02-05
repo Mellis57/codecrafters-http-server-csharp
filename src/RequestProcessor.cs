@@ -1,4 +1,4 @@
-﻿using codecrafters_http_server.src.Constants;
+using codecrafters_http_server.src.Constants;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO.Compression;
 using u8 = System.Text.Encoding;
 
 namespace codecrafters_http_server.src
@@ -82,6 +83,8 @@ namespace codecrafters_http_server.src
                     case "echo":
                         requestHeaders.TryGetValue(RequestHeaders.AcceptEncoding, out string encoding);
 
+                        string message = targetArr[2];
+
                         string? gzip = encoding?.Split(",")                        
                             ?.FirstOrDefault(s => s.Trim() == "gzip");
 
@@ -89,14 +92,42 @@ namespace codecrafters_http_server.src
 
                         //Headers
                         builder.Append($"{ResponseHeaders.ContentType} text/plain{_crlf}");
-                        builder.Append($"{ResponseHeaders.ContentLength} {targetArr[2].Length.ToString()}{_crlf}");
 
                         if (!string.IsNullOrWhiteSpace(gzip))
+                        {
+                            var messageBytes = u8.UTF8.GetBytes(message);
+                            byte[] compressed;
+
+                            using (MemoryStream memoryStream = new())
+                            {
+                                using (GZipStream compressor = new(memoryStream, CompressionMode.Compress, leaveOpen: true))
+                                {
+                                    await compressor.WriteAsync(messageBytes, 0, messageBytes.Length);
+                                }
+                                // GZipStream is now disposed, footer has been written
+                                compressed = memoryStream.ToArray();
+                            }
+
                             builder.Append($"{ResponseHeaders.ContentEncoding} gzip{_crlf}");
+                            builder.Append($"{ResponseHeaders.ContentLength} {compressed.Length}{_crlf}");
+                            builder.Append(_crlf);
 
-                        builder.Append(_crlf);
+                            Console.WriteLine(builder.ToString());
 
-                        builder.Append(targetArr[2]);
+                            await stream.WriteAsync(u8.UTF8.GetBytes(builder.ToString()));
+                            await stream.WriteAsync(compressed);
+                            await stream.FlushAsync();
+                            return;
+                        }
+                        else
+                        {
+                            builder.Append($"{ResponseHeaders.ContentLength} {message.Length.ToString()}{_crlf}");
+                            builder.Append(_crlf);
+
+                            builder.Append(targetArr[2]);
+
+                        }
+
                         break;
                     case "user-agent":
                         if (requestHeaders.TryGetValue(RequestHeaders.UserAgent, out string userAgentBody))
@@ -182,7 +213,7 @@ namespace codecrafters_http_server.src
 
                 Console.WriteLine(builder.ToString());
 
-                await stream.WriteAsync(u8.UTF8.GetBytes(builder.ToString()));
+                await stream.WriteAsync(u8.UTF8.GetBytes(builder.ToString()));                
 
                 await stream.FlushAsync();
             }
