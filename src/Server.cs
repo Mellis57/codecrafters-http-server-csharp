@@ -1,15 +1,11 @@
+using codecrafters_http_server.src;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using u8 = System.Text.Encoding;
 
-const string _okStatusLine = "HTTP/1.1 200 OK\r\n";
-const string _okCreated = "HTTP/1.1 201 Created\r\n\r\n";
-const string _notFound = "HTTP/1.1 404 Not Found\r\n\r\n";
-const string _crlf = "\r\n";
-ConcurrentDictionary<string, string> requestHeaders = new();
-ConcurrentDictionary<string, string> argDict = new();
+Dictionary<string, string> argDict = new();
 
 // Should bet set in debug cli commands or through your_program.sh
 if (args.Length == 2)
@@ -25,158 +21,9 @@ server.Start();
 while (true)
 {
     TcpClient client = await server.AcceptTcpClientAsync();
-    _ = Process(client);
+    RequestProcessor processor = new(client, argDict);
+    _ = processor.Process();
 }
 
 
 
-async Task Process(TcpClient client)
-{
-    using (client)
-    await using (NetworkStream stream = client.GetStream())
-    {
-        byte[] buffer = new byte[1024];
-
-        StringBuilder builder = new();
-
-        int data = await stream.ReadAsync(buffer, 0, buffer.Length);
-
-        string request = u8.UTF8.GetString(buffer, 0, data);
-        
-        string[] reqArr = request.Split("\r\n\r\n");
-        string reqLine = reqArr[0];        
-        string reqBody = reqArr.Length == 2 ? reqArr[1] : "";
-
-        var reqLineWithHeaderArr = reqLine.Split("\r\n");
-
-        for (int i = 1; i < reqLineWithHeaderArr.Length; i++)
-        {
-            string[] headerArr = reqLineWithHeaderArr[i].Split(" ");
-            string key = headerArr[0];
-            string val = headerArr[1];
-
-            requestHeaders.TryAdd(key, val);
-        }
-
-        string[] reqLineArr = reqLineWithHeaderArr[0].Split(" ");
-
-        if ((reqLineArr?.Length < 3))
-        {
-            await stream.WriteAsync(u8.UTF8.GetBytes(builder.ToString()));
-            await stream.FlushAsync();
-            return;
-
-        }
-
-        string method = reqLineArr[0];
-        string target = reqLineArr[1];
-        string httpVersion = reqLineArr[2];
-
-        var targetArr = target.Split("/");
-
-        string endpoint = target == "/" ? "/" : targetArr[1];
-
-        switch (endpoint)
-        {
-            case "/":
-                builder.Append($"{_okStatusLine}{_crlf}");
-                break;
-            case "echo":
-                builder.Append(_okStatusLine);
-
-                //Headers
-                builder.Append($"Content-Type: text/plain{_crlf}");
-                builder.Append($"Content-Length: {targetArr[2].Length.ToString()}{_crlf}");
-                builder.Append(_crlf);
-
-                builder.Append(targetArr[2]);
-                break;
-            case "user-agent":
-                if (requestHeaders.TryGetValue("User-Agent:", out string responseBody))
-                {
-                    builder.Append(_okStatusLine);
-
-                    //Headers
-                    builder.Append($"Content-Type: text/plain{_crlf}");
-                    builder.Append($"Content-Length: {responseBody.Length.ToString()}{_crlf}");
-                    builder.Append(_crlf);
-
-                    builder.Append(responseBody);
-                }
-                break;
-            case "files":
-                string fileName = targetArr[2];
-
-                argDict.TryGetValue("debugDir", out string debugDir);
-
-                if (!argDict.TryGetValue("--directory", out string dir))
-                {
-                    Console.WriteLine("--directory key not found in dictionary");
-                    builder.Append(_notFound);
-                    break;
-                }
-
-                Console.WriteLine($"Directory: {dir}");
-                Console.WriteLine($"File: {fileName}");
-
-                if (!Directory.Exists(dir))
-                {
-                    Console.WriteLine("Dir not found");
-                    builder.Append(_notFound);
-                    break;
-                }
-
-                string filePath = Path.Combine(dir, fileName);
-
-                Console.WriteLine($"{method} {filePath}");
-
-                if (method == "GET")
-                {
-
-                    if (!File.Exists(filePath))
-                    {
-                        Console.WriteLine("File not found");
-                        builder.Append(_notFound);
-                        break;
-
-                    }
-
-                    var fileData = await File.ReadAllTextAsync(filePath);
-                    // Status Line
-                    builder.Append(_okStatusLine);
-
-                    //Headers
-                    builder.Append($"Content-Type: application/octet-stream{_crlf}");
-                    builder.Append($"Content-Length: {fileData.Length}{_crlf}");
-                    builder.Append(_crlf);
-
-                    // Body
-                    builder.Append(fileData);
-
-                }
-                else if (method == "POST")
-                {
-                    try
-                    {
-                        await File.WriteAllBytesAsync(filePath, u8.UTF8.GetBytes(reqBody));
-
-                        builder.Append(_okCreated);
-                    }
-                    catch(Exception ex)
-                    {
-                        Console.WriteLine($"Failed to write file at {filePath}. ex: {ex.Message} {ex.InnerException?.ToString() ?? string.Empty}");
-                    }
-                }
-                break;
-            default:
-                builder.Append(_notFound);
-                break;
-        }
-
-        Console.WriteLine(builder.ToString());
-
-        await stream.WriteAsync(u8.UTF8.GetBytes(builder.ToString()));
-
-        await stream.FlushAsync();
-    }
-}
