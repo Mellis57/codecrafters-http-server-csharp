@@ -5,11 +5,13 @@ using System.Text;
 using u8 = System.Text.Encoding;
 
 const string _okStatusLine = "HTTP/1.1 200 OK\r\n";
+const string _okCreated = "HTTP/1.1 201 Created\r\n\r\n";
 const string _notFound = "HTTP/1.1 404 Not Found\r\n\r\n";
 const string _crlf = "\r\n";
 ConcurrentDictionary<string, string> requestHeaders = new();
 ConcurrentDictionary<string, string> argDict = new();
 
+// Should bet set in debug cli commands or through your_program.sh
 if (args.Length == 2)
     argDict.TryAdd(args[0], args[1]);
 
@@ -104,19 +106,32 @@ async Task Process(TcpClient client)
                 break;
             case "files":
                 string fileName = targetArr[2];
-                if (argDict.TryGetValue("--directory", out string dir))
+
+                argDict.TryGetValue("debugDir", out string debugDir);
+
+                if (!argDict.TryGetValue("--directory", out string dir))
                 {
-                    Console.WriteLine($"Directory: {dir}");
-                    Console.WriteLine($"File: {fileName}");
+                    Console.WriteLine("--directory key not found in dictionary");
+                    builder.Append(_notFound);
+                    break;
+                }
 
-                    if (!Directory.Exists(dir))
-                    {
-                        Console.WriteLine("Dir not found");
-                        builder.Append(_notFound);
-                        break;
-                    }
+                Console.WriteLine($"Directory: {dir}");
+                Console.WriteLine($"File: {fileName}");
 
-                    string filePath = Path.Combine(dir, fileName);
+                if (!Directory.Exists(dir))
+                {
+                    Console.WriteLine("Dir not found");
+                    builder.Append(_notFound);
+                    break;
+                }
+
+                string filePath = Path.Combine(dir, fileName);
+
+                Console.WriteLine($"{method} {filePath}");
+
+                if (method == "GET")
+                {
 
                     if (!File.Exists(filePath))
                     {
@@ -137,11 +152,20 @@ async Task Process(TcpClient client)
 
                     // Body
                     builder.Append(fileData);
+
                 }
-                else
+                else if (method == "POST")
                 {
-                    Console.WriteLine("--directory key not found in dictionary");
-                    builder.Append(_notFound);
+                    try
+                    {
+                        await File.WriteAllBytesAsync(filePath, u8.UTF8.GetBytes(reqBody));
+
+                        builder.Append(_okCreated);
+                    }
+                    catch(Exception ex)
+                    {
+                        Console.WriteLine($"Failed to write file at {filePath}. ex: {ex.Message} {ex.InnerException?.ToString() ?? string.Empty}");
+                    }
                 }
                 break;
             default:
