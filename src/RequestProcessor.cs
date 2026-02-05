@@ -49,7 +49,7 @@ namespace codecrafters_http_server.src
 
                 for (int i = 1; i < reqLineWithHeaderArr.Length; i++)
                 {
-                    string[] headerArr = reqLineWithHeaderArr[i].Split(" ");
+                    string[] headerArr = reqLineWithHeaderArr[i].Split(": ");
                     string key = headerArr[0].Trim('[',']');
                     string val = headerArr[1];
 
@@ -82,13 +82,16 @@ namespace codecrafters_http_server.src
                     case "echo":
                         requestHeaders.TryGetValue(RequestHeaders.AcceptEncoding, out string encoding);
 
+                        string? gzip = encoding?.Split(",")                        
+                            ?.FirstOrDefault(s => s.Trim() == "gzip");
+
                         builder.Append(_okStatusLine);
 
                         //Headers
                         builder.Append($"{ResponseHeaders.ContentType} text/plain{_crlf}");
                         builder.Append($"{ResponseHeaders.ContentLength} {targetArr[2].Length.ToString()}{_crlf}");
 
-                        if (!string.IsNullOrWhiteSpace(encoding) && encoding == "gzip")
+                        if (!string.IsNullOrWhiteSpace(gzip))
                             builder.Append($"{ResponseHeaders.ContentEncoding} gzip{_crlf}");
 
                         builder.Append(_crlf);

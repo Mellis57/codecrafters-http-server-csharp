@@ -82,71 +82,71 @@ namespace codecrafters_http_server.src.Constants
     public static class RequestHeaders
     {
         // Request context
-        public const string Host = "Host:";
-        public const string UserAgent = "User-Agent:";
-        public const string From = "From:";
-        public const string Referer = "Referer:";
+        public const string Host = "Host";
+        public const string UserAgent = "User-Agent";
+        public const string From = "From";
+        public const string Referer = "Referer";
 
         // Content negotiation
-        public const string Accept = "Accept:";
-        public const string AcceptEncoding = "Accept-Encoding:";
-        public const string AcceptLanguage = "Accept-Language:";
+        public const string Accept = "Accept";
+        public const string AcceptEncoding = "Accept-Encoding";
+        public const string AcceptLanguage = "Accept-Language";
 
         // Authentication
-        public const string Authorization = "Authorization:";
-        public const string ProxyAuthorization = "Proxy-Authorization:";
+        public const string Authorization = "Authorization";
+        public const string ProxyAuthorization = "Proxy-Authorization";
 
         // Caching
-        public const string CacheControl = "Cache-Control:";
+        public const string CacheControl = "Cache-Control";
 
         // Conditionals
-        public const string IfMatch = "If-Match:";
-        public const string IfNoneMatch = "If-None-Match:";
-        public const string IfModifiedSince = "If-Modified-Since:";
-        public const string IfUnmodifiedSince = "If-Unmodified-Since:";
-        public const string IfRange = "If-Range:";
+        public const string IfMatch = "If-Match";
+        public const string IfNoneMatch = "If-None-Match";
+        public const string IfModifiedSince = "If-Modified-Since";
+        public const string IfUnmodifiedSince = "If-Unmodified-Since";
+        public const string IfRange = "If-Range";
 
         // Connection management
-        public const string Connection = "Connection:";
-        public const string KeepAlive = "Keep-Alive:";
+        public const string Connection = "Connection";
+        public const string KeepAlive = "Keep-Alive";
 
         // Cookies
-        public const string Cookie = "Cookie:";
+        public const string Cookie = "Cookie";
 
         // CORS
-        public const string Origin = "Origin:";
-        public const string AccessControlRequestHeaders = "Access-Control-Request-Headers:";
-        public const string AccessControlRequestMethod = "Access-Control-Request-Method:";
+        public const string Origin = "Origin";
+        public const string AccessControlRequestHeaders = "Access-Control-Request-Headers";
+        public const string AccessControlRequestMethod = "Access-Control-Request-Method";
 
         // Message body information
-        public const string ContentType = "Content-Type:";
-        public const string ContentLength = "Content-Length:";
-        public const string ContentEncoding = "Content-Encoding:";
+        public const string ContentType = "Content-Type";
+        public const string ContentLength = "Content-Length";
+        public const string ContentEncoding = "Content-Encoding";
 
         // Range requests
-        public const string Range = "Range:";
+        public const string Range = "Range";
 
         // Controls
-        public const string Expect = "Expect:";
-        public const string MaxForwards = "Max-Forwards:";
+        public const string Expect = "Expect";
+        public const string MaxForwards = "Max-Forwards";
 
         // Transfer coding
-        public const string TE = "TE:";
-        public const string Trailer = "Trailer:";
-        public const string TransferEncoding = "Transfer-Encoding:";
+        public const string TE = "TE";
+        public const string Trailer = "Trailer";
+        public const string TransferEncoding = "Transfer-Encoding";
 
         // Proxies
-        public const string Forwarded = "Forwarded:";
-        public const string Via = "Via:";
-        public const string XForwardedFor = "X-Forwarded-For:";
-        public const string XForwardedHost = "X-Forwarded-Host:";
-        public const string XForwardedProto = "X-Forwarded-Proto:";
+        public const string Forwarded = "Forwarded";
+        public const string Via = "Via";
+        public const string XForwardedFor = "X-Forwarded-For";
+        public const string XForwardedHost = "X-Forwarded-Host";
+        public const string XForwardedProto = "X-Forwarded-Proto";
 
         // Security
-        public const string UpgradeInsecureRequests = "Upgrade-Insecure-Requests:";
+        public const string UpgradeInsecureRequests = "Upgrade-Insecure-Requests";
 
         // Other
-        public const string Date = "Date:";
-        public const string Upgrade = "Upgrade:";
+        public const string Date = "Date";
+        public const string Upgrade = "Upgrade";
     }
 }
