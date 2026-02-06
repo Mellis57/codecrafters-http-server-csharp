@@ -76,6 +76,8 @@ namespace codecrafters_http_server.src
                         requestHeaders.TryAdd(key, val);
                     }
 
+                    requestHeaders.TryGetValue(RequestHeaders.Connection, out string connection);
+
                     string[] reqLineArr = reqLineWithHeaderArr[0].Split(" ");
 
                     if ((reqLineArr?.Length < 3))
@@ -228,20 +230,41 @@ namespace codecrafters_http_server.src
                         default:
                             builder.Append(_notFound);
                             break;
-                    }
+                    }                
 
-                    Console.WriteLine(builder.ToString());
+                    if(connection?.ToLower() == "close")
+                    {
+                        AddCloseResponseHeader(builder);
 
-                    await stream.WriteAsync(u8.UTF8.GetBytes(builder.ToString()));                
+                        Console.WriteLine(builder.ToString());
 
-                    await stream.FlushAsync();
+                        await stream.WriteAsync(u8.UTF8.GetBytes(builder.ToString()));
 
-                    if(requestHeaders.TryGetValue(RequestHeaders.Connection, out string connection)
-                        && connection.ToLower() == "close")
+                        await stream.FlushAsync();
+
                         break;
+                    }
+                    else
+                    {
+                        Console.WriteLine(builder.ToString());
 
-                    requestHeaders.Clear();
+                        await stream.WriteAsync(u8.UTF8.GetBytes(builder.ToString()));
+
+                        await stream.FlushAsync();
+
+                        requestHeaders.Clear();
+                    }
                 }
+            }
+        }
+
+        private void AddCloseResponseHeader(StringBuilder builder)
+        {
+            string content = builder.ToString();
+            int separatorIndex = content.IndexOf("\r\n\r\n");
+            if (separatorIndex >= 0)
+            {
+                builder.Insert(separatorIndex, $"{_crlf}{ResponseHeaders.Connection} close");
             }
         }
     }
